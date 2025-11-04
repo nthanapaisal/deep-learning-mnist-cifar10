@@ -1,0 +1,80 @@
+{
+  "shallow_mnist": {
+    "runtime": 21.12,
+    "accuracy": 0.9724,
+    "avg_train_loss": 0.10351350182679289,
+    "avg_val_loss": 0.08465268953019588,
+    "val_acc": 0.9754,
+    "std_val_acc": 0.01479416712601223,
+    "avg_test_loss": 0.08968551612689006,
+    "batch_size": 128,
+    "optimizer": "sgd",
+    "lr": 0.01,
+    "dropout_rate": 0.2
+  },
+  "shallow_cifar10": {
+    "runtime": 20.14,
+    "accuracy": 0.4963,
+    "avg_train_loss": 1.533948820875124,
+    "avg_val_loss": 1.3823279625252833,
+    "val_acc": 0.5322,
+    "std_val_acc": 0.028494909052271658,
+    "avg_test_loss": 1.4613826365410527,
+    "batch_size": 64,
+    "optimizer": "adam",
+    "lr": 0.0001,
+    "dropout_rate": 0.5
+  },
+  "medium_mnist": {
+    "runtime": 20.84,
+    "accuracy": 0.9782,
+    "avg_train_loss": 0.07370861780756255,
+    "avg_val_loss": 0.06955981896740762,
+    "val_acc": 0.9819,
+    "std_val_acc": 0.01679648489303356,
+    "avg_test_loss": 0.07068905656102933,
+    "batch_size": 128,
+    "optimizer": "sgd",
+    "lr": 0.01,
+    "dropout_rate": 0.2
+  },
+  "medium_cifar10": {
+    "runtime": 19.96,
+    "accuracy": 0.5069,
+    "avg_train_loss": 1.5069632560700712,
+    "avg_val_loss": 1.390431997179985,
+    "val_acc": 0.5566,
+    "std_val_acc": 0.05385585545385632,
+    "avg_test_loss": 1.4107332274883608,
+    "batch_size": 128,
+    "optimizer": "adam",
+    "lr": 0.0001,
+    "dropout_rate": 0.5
+  },
+  "deep_mnist": {
+    "runtime": 17.52,
+    "accuracy": 0.9632,
+    "avg_train_loss": 0.2323634032525424,
+    "avg_val_loss": 0.10843935791607964,
+    "val_acc": 0.9805,
+    "std_val_acc": 0.0349898400219536,
+    "avg_test_loss": 0.13938786029886407,
+    "batch_size": 64,
+    "optimizer": "sgd",
+    "lr": 0.01,
+    "dropout_rate": 0.5
+  },
+  "deep_cifar10": {
+    "runtime": 21.85,
+    "accuracy": 0.4377,
+    "avg_train_loss": 1.6509016474799427,
+    "avg_val_loss": 1.6016053467988969,
+    "val_acc": 0.5594,
+    "std_val_acc": 0.09866497680057916,
+    "avg_test_loss": 1.529074187520184,
+    "batch_size": 128,
+    "optimizer": "sgd",
+    "lr": 0.01,
+    "dropout_rate": 0.5
+  }
+}

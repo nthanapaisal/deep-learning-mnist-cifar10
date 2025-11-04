@@ -4,6 +4,7 @@
 import os
 import time
 import random
+import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import ConcatDataset, DataLoader
@@ -89,6 +90,7 @@ def medium_nn_training(dataset_name):
 
                     early_stop_counter = 0
                     best_val_acc_for_this_config = 0.0
+                    val_acc = []
 
                     for epoch in range(30):
                         
@@ -132,6 +134,7 @@ def medium_nn_training(dataset_name):
                         avg_train_loss = total_loss / len(input_train)
                         avg_val_loss = total_val_loss / len(input_val)
                         val_accuracy = correct / total_samples_nums
+                        val_acc.append(val_accuracy)
                         print(f"epoch: {epoch}, avg_train_loss: {avg_train_loss}, avg_val_loss: {avg_val_loss}")
 
                         if val_accuracy > best_val_acc_for_this_config:
@@ -141,11 +144,14 @@ def medium_nn_training(dataset_name):
                             early_stop_counter += 1
                             if early_stop_counter >= 3: break
 
+                    std_val_acc = np.std(val_acc, ddof=1)
+
                     # update global acc if the set of hyperpams has the better acc
                     if best_val_acc_for_this_config > max_acc:
                         max_acc = best_val_acc_for_this_config
                         winner = {
                             "accuracy": best_val_acc_for_this_config,
+                            "std_val_acc": std_val_acc,
                             "avg_val_loss": total_val_loss / len(input_val),
                             "batch_size": batch_size,
                             "optimizer": optimizer_name,
@@ -156,7 +162,7 @@ def medium_nn_training(dataset_name):
     end_time = time.time()
     runtime_min = round((end_time - start_time) / 60, 2)
 
-    print(f"Hypertuning winner: {winner}, dataset: {dataset_name}")
+    print(f"Hypertuning winner: {winner}")
 
     # final training
     model_final = MediumNeuralNetwork(pixel_size, winner["dropout_rate"], in_channels_thickness).to(device)
@@ -217,6 +223,8 @@ def medium_nn_training(dataset_name):
         "accuracy": accuracy,
         "avg_train_loss": total_loss / len(combined_train_val),
         "avg_val_loss": winner["avg_val_loss"],
+        "val_acc": winner["accuracy"], 
+        "std_val_acc": winner["std_val_acc"],
         "avg_test_loss": total_test_loss / len(input_test),
         "batch_size": winner["batch_size"],
         "optimizer": winner["optimizer"],

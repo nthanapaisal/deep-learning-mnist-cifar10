@@ -1,5 +1,61 @@
-# MLPS
-# archs 1. Shallow (1 hidden layer, e.g., 128 units) 2. Medium-depth (3 hidden layers, e.g., [512, 256, 128]) 3. Deep (at least 5 hidden layers, your choice)
+import torch
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, random_split
+from torch.nn.functional as F
+
+def load_data(batch_size):
+    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+
+    mnist_training_data = datasets.MNIST(
+        root="data",
+        train=True,
+        download=True,
+        transform=transform
+    )
+
+    mnist_test_data = datasets.MNIST(
+        root="data",
+        train=False,
+        download=True,
+        transform=transform
+    )
+
+    img, label = mnist_training_data[0]
+    print(img.shape)
+
+    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    cifar10_training_data = datasets.CIFAR10(
+        root="data",
+        train=True,
+        download=True,
+        transform=transform
+    )
+
+    cifar10_test_data = datasets.CIFAR10(
+        root="data",
+        train=False,
+        download=True,
+        transform=transform
+    )
+
+    img, label = cifar10_training_data[0]
+    print(img.shape)
+
+    mnist_train, mnist_val = random_split(mnist_training_data, [50000, 10000])
+    mnist_training_data_loader = DataLoader(mnist_train, batch_size=batch_size, shuffle=True)
+    mnist_val_data_loader = DataLoader(mnist_val, batch_size=batch_size, shuffle=False)
+    mnist_test_data_loader = DataLoader(mnist_test_data, batch_size=batch_size, shuffle=False)
+
+    cifar10_train, cifar10_val = random_split(cifar10_training_data, [45000, 5000])
+    cifar10_training_data_loader = DataLoader(cifar10_train, batch_size=batch_size, shuffle=True)
+    cifar10_val_data_loader = DataLoader(cifar10_val, batch_size=batch_size, shuffle=False)
+    cifar10_test_data_loader = DataLoader(cifar10_test_data, batch_size=batch_size, shuffle=False)
+
+    return ( mnist_training_data_loader, mnist_val_data_loader, mnist_test_data_loader, 
+        cifar10_training_data_loader, cifar10_val_data_loader, cifar10_test_data_loader )
+
+
 
 import os
 import time
@@ -8,8 +64,6 @@ import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import ConcatDataset, DataLoader
-from preprocessing import load_data
-
 
 torch.manual_seed(42)
 random.seed(42)
@@ -26,44 +80,34 @@ print("Using device:", device)
 # ∗ Optimizer (SGD vs. Adam)
 # ∗ Dropout rate (e.g. {0.2,0.5})
 
-# nn class deep
-# https://docs.pytorch.org/tutorials/beginner/basics/buildmodel_tutorial.html
-class DeepNeuralNetwork(nn.Module):
-    def __init__(self, img_size, dropout_rate, in_channels_thickness=1): # W * H * T
+# cnn  (2 convolutional layers + pooling, fully connected layer)
+class CnnBaseline(nn.Module):
+    def __init__(self, img_size, in_channels_thickness=1):
         super().__init__()
-        self.flatten = nn.Flatten()
-        self.linear_relu_stack = nn.Sequential(
-            nn.Linear(in_channels_thickness * img_size * img_size, 1024),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(1024, 512),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(64, 10),
-        )
+        filter_nums = 32
+        filter_size = 3
+        window_size, stride = 2, 2
+        class_nums = 10
+        #MINST 1x28x28 -> 32x28x28 -> 32x14x14 -> 64x14x14 -> 64x7x7
+        self.convo_layer1 = nn.Conv2d(in_channels_thickness, filter_nums, filter_size, padding=1)
+        self.convo_layer2 = nn.Conv2d(filter_nums, filter_nums*2, filter_size, padding=1)
+        self.pool = nn.MaxPool2d(window_size,stride) # pool after each convo layer: compressed spatial details that is not needed
+        self.function1 = nn.Linear((filter_nums*2)*(img_size//4)*(img_size//4), 128) # 3136, 128
+        self.function2 = nn.Linear(128, class_nums) #128, 10
 
     def forward(self, data):
-        flatten_data = self.flatten(data)
-        logits = self.linear_relu_stack(flatten_data)
-        return logits
+        res = self.pool(F.relu(self.convo_layer1(data))) # fully connected hidden layer 
+        res = self.pool(F.relu(self.convo_layer2(res))) # output layer into 10 classes
+        res = res.view(res.size(0), -1) #flatten to 2D vector [batch size and number of features L*W*T]
+        res = F.relu(self.function1(res))
+        res = self.function2(res)
+        return res
 
-
-# deep
-def deep_nn_training(dataset_name):
+def cnn_baseline_training(dataset_name):
     max_acc = float('-inf')
     winner = {}
     start_time = time.time()
     for batch_size in [64, 128]:
-        # Load and Split Data
         mnist_train, mnist_val, mnist_test, cifar10_train, cifar10_val, cifar10_test = load_data(batch_size)
         if dataset_name == "MNIST":
             input_train, input_val, input_test = mnist_train, mnist_val, mnist_test
@@ -74,15 +118,12 @@ def deep_nn_training(dataset_name):
             pixel_size = 32
             in_channels_thickness = 3
 
-        # https://docs.pytorch.org/docs/stable/optim.html#module-torch.optim
         for optimizer_name in ["sgd","adam"]:
             for lr in [0.01, 0.001, 0.0001]:
                 for dropout_rate in [0.2, 0.5]:
 
-                    # nn deep model
-                    model = DeepNeuralNetwork(pixel_size, dropout_rate, in_channels_thickness).to(device)
+                    model = CnnBaseline(pixel_size, in_channels_thickness).to(device)
 
-                    # loss func
                     cross_entropy_loss = nn.CrossEntropyLoss()
 
                     if optimizer_name == "sgd":
@@ -92,7 +133,7 @@ def deep_nn_training(dataset_name):
 
                     model.train()
 
-                    print(f"Dataset: {dataset_name} Hyperparams: batch_size: {batch_size}, optimizer: {optimizer_name}, lr: {lr}, dropout_rate: {dropout_rate}")
+                    print(f"Dataset: {dataset_name}, Hyperparams: batch_size: {batch_size}, optimizer: {optimizer_name}, lr: {lr}, dropout_rate: {dropout_rate}")
 
                     early_stop_counter = 0
                     best_val_acc_for_this_config = 0.0
@@ -101,29 +142,25 @@ def deep_nn_training(dataset_name):
                     for epoch in range(30):
                         
                         total_loss = 0.0
-                        # train 
+
                         for images, labels in input_train:
-                            # put data in device
+
                             images, labels = images.to(device), labels.to(device)
 
-                            # forward pass
                             logits = model(images)
                             loss = cross_entropy_loss(logits, labels)
 
-                            # back propagation https://docs.pytorch.org/docs/stable/optim.html#taking-an-optimization-step
                             optimizer.zero_grad()
                             loss.backward()
                             optimizer.step()
 
                             total_loss += loss.item()
 
-                        # validation 
                         model.eval()
                         total_val_loss = 0.0
                         total_samples_nums = 0
                         correct = 0
 
-                        # disable gradient computation for evaluation
                         with torch.no_grad():  
                             for images_val, labels_val in input_val:
                                 images_val, labels_val = images_val.to(device), labels_val.to(device)
@@ -136,7 +173,6 @@ def deep_nn_training(dataset_name):
                                 predicted_index = logits_val.argmax(dim=1)
                                 correct += (predicted_index == labels_val).sum().item()
                         
-                        # calculate accuracy and update best val acc within these epoch 
                         avg_train_loss = total_loss / len(input_train)
                         avg_val_loss = total_val_loss / len(input_val)
                         val_accuracy = correct / total_samples_nums
@@ -152,7 +188,6 @@ def deep_nn_training(dataset_name):
 
                     std_val_acc = np.std(val_acc, ddof=1)
 
-                    # update global acc if the set of hyperpams has the better acc
                     if best_val_acc_for_this_config > max_acc:
                         max_acc = best_val_acc_for_this_config
                         winner = {
@@ -171,7 +206,7 @@ def deep_nn_training(dataset_name):
     print(f"Hypertuning winner: {winner}")
 
     # final training
-    model_final = DeepNeuralNetwork(pixel_size, winner["dropout_rate"], in_channels_thickness).to(device)
+    model_final = CnnBaseline(pixel_size, in_channels_thickness).to(device)
 
     # loss func
     cross_entropy_loss = nn.CrossEntropyLoss()
@@ -183,33 +218,29 @@ def deep_nn_training(dataset_name):
 
     model_final.train()
 
-    # combine train and val data 
     combined_train = ConcatDataset([input_train.dataset, input_val.dataset])
     combined_train_val = DataLoader(combined_train, batch_size=winner["batch_size"], shuffle=True)
 
     for epoch in range(10):
         total_loss = 0.0
         for images, labels in combined_train_val:
-            # put data in device
+
             images, labels = images.to(device), labels.to(device)
 
-            # forward pass
             logits = model_final(images)
             loss = cross_entropy_loss(logits, labels)
 
-            # back propagation https://docs.pytorch.org/docs/stable/optim.html#taking-an-optimization-step
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
 
-    # calculate this set of hyperparams perf
     model_final.eval()
     total_test_loss = 0.0
     total_samples_nums = 0
     correct = 0
-    # Disable gradient computation for evaluation
+
     with torch.no_grad():  
         for images_test, labels_test in input_test:
             images_test, labels_test = images_test.to(device), labels_test.to(device)
@@ -218,7 +249,6 @@ def deep_nn_training(dataset_name):
             test_loss = cross_entropy_loss(logits_test, labels_test)
             total_test_loss += test_loss.item()
 
-            # Calculate accuracy
             total_samples_nums += labels_test.size(0)
             predicted_index = logits_test.argmax(dim=1)
             correct += (predicted_index == labels_test).sum().item()
@@ -229,7 +259,7 @@ def deep_nn_training(dataset_name):
         "accuracy": accuracy,
         "avg_train_loss": total_loss / len(combined_train_val),
         "avg_val_loss": winner["avg_val_loss"],
-        "val_acc": winner["accuracy"], 
+        "val_acc": winner["accuracy"],
         "std_val_acc": winner["std_val_acc"],
         "avg_test_loss": total_test_loss / len(input_test),
         "batch_size": winner["batch_size"],
@@ -237,3 +267,18 @@ def deep_nn_training(dataset_name):
         "lr": winner["lr"],
         "dropout_rate": winner["dropout_rate"]
     }
+
+print("Running Baseline architecture for MNIST and CIFAR10")
+final_report = {}
+
+final_report["cnn_baseline_mnist"] = cnn_baseline_training("MNIST")
+print(f"cnn_baseline_mnist: {final_report['cnn_baseline_mnist']}")
+
+final_report["cnn_baseline_cifar10"] = cnn_baseline_training("CIFAR10")
+print(f"cnn_baseline_cifar10: {final_report['cnn_baseline_cifar10']}")
+
+print(json.dumps(final_report, indent=2))
+with open("cnn_baseline_report.json", "w") as f:
+    json.dump(final_report, f, indent=2)
+
+print("Completed Baseline architecture for MNIST and CIFAR10")
