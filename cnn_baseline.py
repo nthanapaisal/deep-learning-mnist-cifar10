@@ -1,7 +1,21 @@
+import json
+import time
+import random
+import numpy as np
 import torch
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader, random_split
-from torch.nn.functional as F
+from torch.utils.data import DataLoader, random_split, ConcatDataset
+from torch import nn
+import torch.nn.functional as F
+
+torch.manual_seed(42)
+random.seed(42)
+
+device = (
+    torch.device("mps") if torch.backends.mps.is_available()
+    else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+)
+print("Using device:", device)
 
 def load_data(batch_size):
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
@@ -20,10 +34,7 @@ def load_data(batch_size):
         transform=transform
     )
 
-    img, label = mnist_training_data[0]
-    print(img.shape)
-
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    transform = transforms.Compose([transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(),transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     cifar10_training_data = datasets.CIFAR10(
         root="data",
@@ -39,9 +50,6 @@ def load_data(batch_size):
         transform=transform
     )
 
-    img, label = cifar10_training_data[0]
-    print(img.shape)
-
     mnist_train, mnist_val = random_split(mnist_training_data, [50000, 10000])
     mnist_training_data_loader = DataLoader(mnist_train, batch_size=batch_size, shuffle=True)
     mnist_val_data_loader = DataLoader(mnist_val, batch_size=batch_size, shuffle=False)
@@ -55,26 +63,6 @@ def load_data(batch_size):
     return ( mnist_training_data_loader, mnist_val_data_loader, mnist_test_data_loader, 
         cifar10_training_data_loader, cifar10_val_data_loader, cifar10_test_data_loader )
 
-
-
-import os
-import time
-import random
-import numpy as np
-import torch
-from torch import nn
-from torch.utils.data import ConcatDataset, DataLoader
-
-torch.manual_seed(42)
-random.seed(42)
-
-report = {}
-device = (
-    torch.device("mps") if torch.backends.mps.is_available()
-    else torch.device("cuda" if torch.cuda.is_available() else "cpu")
-)
-print("Using device:", device)
-
 # ∗ Learning rate (e.g. {0.01, 0.001, 0.0001})
 # ∗ Batch size (e.g. {32, 64, 128})
 # ∗ Optimizer (SGD vs. Adam)
@@ -87,7 +75,7 @@ class CnnBaseline(nn.Module):
         filter_size = 3
         window_size, stride = 2, 2
         class_nums = 10
-        #MINST 1x28x28 -> 32x28x28 -> 32x14x14 -> 64x14x14 -> 64x7x7
+        #MNIST 1x28x28 -> 32x28x28 -> 32x14x14 -> 64x14x14 -> 64x7x7
         self.convo_layer1 = nn.Conv2d(in_channels_thickness, filter_nums, filter_size, padding=1)
         self.convo_layer2 = nn.Conv2d(filter_nums, filter_nums*2, filter_size, padding=1)
         self.pool = nn.MaxPool2d(window_size,stride) # pool after each convo layer: compressed spatial details that is not needed
@@ -112,10 +100,12 @@ def cnn_baseline_training(dataset_name):
             input_train, input_val, input_test = mnist_train, mnist_val, mnist_test
             pixel_size = 28
             in_channels_thickness = 1
+            epoch_num = 30
         else:
             input_train, input_val, input_test = cifar10_train, cifar10_val, cifar10_test
             pixel_size = 32
             in_channels_thickness = 3
+            epoch_num = 50
 
         for optimizer_name in ["sgd","adam"]:
             for lr in [0.01, 0.001, 0.0001]:
@@ -136,7 +126,7 @@ def cnn_baseline_training(dataset_name):
                 best_val_acc_for_this_config = 0.0
                 val_acc = []
 
-                for epoch in range(30):
+                for epoch in range(epoch_num):
                     
                     total_loss = 0.0
 
@@ -255,7 +245,7 @@ def cnn_baseline_training(dataset_name):
         "accuracy": accuracy,
         "avg_train_loss": total_loss / len(combined_train_val),
         "avg_val_loss": winner["avg_val_loss"],
-        "val_acc": winner["accuracy"],
+        "val_acc": winner["accuracy"], 
         "std_val_acc": winner["std_val_acc"],
         "avg_test_loss": total_test_loss / len(input_test),
         "batch_size": winner["batch_size"],

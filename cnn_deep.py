@@ -68,7 +68,7 @@ def load_data(batch_size):
 # ∗ Optimizer (SGD vs. Adam)
 
 # cnn  (add batch normalization and dropout)
-class CnnEnhanced(nn.Module):
+class CnnDeep(nn.Module):
     def __init__(self, img_size, dropout_rate, in_channels_thickness=1):
         super().__init__()
         filter_nums = 32
@@ -84,11 +84,19 @@ class CnnEnhanced(nn.Module):
         self.batch_norm2 = nn.BatchNorm2d(filter_nums*2)
         self.dropout2 = nn.Dropout(dropout_rate)
 
+        self.convo_layer3 = nn.Conv2d(filter_nums*2, filter_nums*4, filter_size, padding=1)
+        self.batch_norm3 = nn.BatchNorm2d(filter_nums*4)
+        self.dropout3 = nn.Dropout(dropout_rate)
+
+        self.convo_layer4 = nn.Conv2d(filter_nums*4, filter_nums*8, filter_size, padding=1)
+        self.batch_norm4 = nn.BatchNorm2d(filter_nums*8)
+        self.dropout4 = nn.Dropout(dropout_rate)
+
         self.pool = nn.MaxPool2d(window_size,stride) # pool after each convo layer: compressed spatial details that is not needed
         
-        self.function1 = nn.Linear((filter_nums*2)*(img_size//4)*(img_size//4), 128) # 3136, 128
-        self.batch_norm3 = nn.BatchNorm1d(128)
-        self.dropout3 = nn.Dropout(dropout_rate)
+        self.function1 = nn.Linear((filter_nums*8)*(img_size//16)*(img_size//16), 128) # 3136, 128
+        self.batch_norm5 = nn.BatchNorm1d(128)
+        self.dropout5 = nn.Dropout(dropout_rate)
         self.function2 = nn.Linear(128, class_nums) #128, 10
 
     def forward(self, data):
@@ -104,20 +112,32 @@ class CnnEnhanced(nn.Module):
         res = self.pool(res) 
         res = self.dropout2(res) 
 
+        res = self.convo_layer3(res)
+        res = self.batch_norm3(res)
+        res = F.relu(res)
+        res = self.pool(res) 
+        res = self.dropout3(res) 
+
+        res = self.convo_layer4(res)
+        res = self.batch_norm4(res)
+        res = F.relu(res)
+        res = self.pool(res) 
+        res = self.dropout4(res) 
+
         res = res.view(res.size(0), -1) #flatten to 2D vector [batch size and number of features L*W*T]
 
         res = self.function1(res)
-        res = self.batch_norm3(res)
+        res = self.batch_norm5(res)
         res = F.relu(res)
-        res = self.dropout3(res) 
+        res = self.dropout5(res) 
         res = self.function2(res)
         return res
 
-def cnn_enhanced_training(dataset_name):
+def cnn_deep_training(dataset_name):
     max_acc = float('-inf')
     winner = {}
     start_time = time.time()
-    for batch_size in [64, 128]:
+    for batch_size in [128, 256]:
         mnist_train, mnist_val, mnist_test, cifar10_train, cifar10_val, cifar10_test = load_data(batch_size)
         if dataset_name == "MNIST":
             input_train, input_val, input_test = mnist_train, mnist_val, mnist_test
@@ -131,9 +151,9 @@ def cnn_enhanced_training(dataset_name):
             epoch_num = 70
 
         for optimizer_name in ["sgd","adam"]:
-            for lr in [0.01, 0.001]:
+            for lr in [0.01, 0.005]:
                 for dropout_rate in [0.25, 0.5]:
-                    model = CnnEnhanced(pixel_size, dropout_rate, in_channels_thickness).to(device)
+                    model = CnnDeep(pixel_size, dropout_rate, in_channels_thickness).to(device)
 
                     cross_entropy_loss = nn.CrossEntropyLoss()
 
@@ -217,7 +237,7 @@ def cnn_enhanced_training(dataset_name):
     print(f"Hypertuning winner: {winner}")
 
     # final training
-    model_final = CnnEnhanced(pixel_size, winner["dropout_rate"], in_channels_thickness).to(device)
+    model_final = CnnDeep(pixel_size, winner["dropout_rate"], in_channels_thickness).to(device)
 
     # loss func
     cross_entropy_loss = nn.CrossEntropyLoss()
@@ -279,17 +299,17 @@ def cnn_enhanced_training(dataset_name):
         "lr": winner["lr"]
     }
 
-print("Running Enhanced architecture for MNIST and CIFAR10")
+print("Running Deep architecture for MNIST and CIFAR10")
 final_report = {}
 
-final_report["cnn_enhanced_mnist"] = cnn_enhanced_training("MNIST")
-print(f"cnn_enhanced_mnist: {final_report['cnn_enhanced_mnist']}")
+final_report["cnn_deep_mnist"] = cnn_deep_training("MNIST")
+print(f"cnn_deep_mnist: {final_report['cnn_deep_mnist']}")
 
-final_report["cnn_enhanced_cifar10"] = cnn_enhanced_training("CIFAR10")
-print(f"cnn_enhanced_cifar10: {final_report['cnn_enhanced_cifar10']}")
+final_report["cnn_deep_cifar10"] = cnn_deep_training("CIFAR10")
+print(f"cnn_deep_cifar10: {final_report['cnn_deep_cifar10']}")
 
 print(json.dumps(final_report, indent=2))
-with open("cnn_enhanced_report.json", "w") as f:
+with open("cnn_deep_report.json", "w") as f:
     json.dump(final_report, f, indent=2)
 
-print("Completed Enhanced architecture for MNIST and CIFAR10")
+print("Completed Deep architecture for MNIST and CIFAR10")

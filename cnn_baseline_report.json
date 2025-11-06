@@ -1,0 +1,26 @@
+{
+  "cnn_baseline_mnist": {
+    "runtime": 16.44,
+    "accuracy": 0.9903,
+    "avg_train_loss": 0.014445621101036747,
+    "avg_val_loss": 0.03935222343403162,
+    "val_acc": 0.9913,
+    "std_val_acc": 0.005854855953419707,
+    "avg_test_loss": 0.02779684279817105,
+    "batch_size": 128,
+    "optimizer": "sgd",
+    "lr": 0.01
+  },
+  "cnn_baseline_cifar10": {
+    "runtime": 27.78,
+    "accuracy": 0.693,
+    "avg_train_loss": 0.8503701991742224,
+    "avg_val_loss": 0.6723321095108986,
+    "val_acc": 0.7764,
+    "std_val_acc": 0.08354004042120311,
+    "avg_test_loss": 0.8758778383460226,
+    "batch_size": 128,
+    "optimizer": "sgd",
+    "lr": 0.01
+  }
+}
