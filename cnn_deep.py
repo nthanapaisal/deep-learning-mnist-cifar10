@@ -137,7 +137,7 @@ def cnn_deep_training(dataset_name):
     max_acc = float('-inf')
     winner = {}
     start_time = time.time()
-    for batch_size in [128, 256]:
+    for batch_size in [64, 128]:
         mnist_train, mnist_val, mnist_test, cifar10_train, cifar10_val, cifar10_test = load_data(batch_size)
         if dataset_name == "MNIST":
             input_train, input_val, input_test = mnist_train, mnist_val, mnist_test

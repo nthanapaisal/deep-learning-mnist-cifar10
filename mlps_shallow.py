@@ -22,7 +22,7 @@ device = (
 print("Using device:", device)
 
 # ∗ Learning rate (e.g. {0.01, 0.001, 0.0001})
-# ∗ Batch size (e.g. {32, 64, 128})
+# ∗ Batch size (e.g. {64, 128})
 # ∗ Optimizer (SGD vs. Adam)
 # ∗ Dropout rate (e.g. {0.2,0.5})
 
@@ -175,7 +175,7 @@ def shallow_nn_training(dataset_name):
     combined_train = ConcatDataset([input_train.dataset, input_val.dataset])
     combined_train_val = DataLoader(combined_train, batch_size=winner["batch_size"], shuffle=True)
 
-    for epoch in range(10):
+    for epoch in range(30):
         total_loss = 0.0
         for images, labels in combined_train_val:
             # put data in device

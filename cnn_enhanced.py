@@ -131,7 +131,7 @@ def cnn_enhanced_training(dataset_name):
             epoch_num = 70
 
         for optimizer_name in ["sgd","adam"]:
-            for lr in [0.01, 0.001]:
+            for lr in [0.01, 0.005]:
                 for dropout_rate in [0.25, 0.5]:
                     model = CnnEnhanced(pixel_size, dropout_rate, in_channels_thickness).to(device)
 

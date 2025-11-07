@@ -105,10 +105,10 @@ def cnn_baseline_training(dataset_name):
             input_train, input_val, input_test = cifar10_train, cifar10_val, cifar10_test
             pixel_size = 32
             in_channels_thickness = 3
-            epoch_num = 50
+            epoch_num = 70
 
         for optimizer_name in ["sgd","adam"]:
-            for lr in [0.01, 0.001, 0.0001]:
+            for lr in [0.01, 0.005]:
                 model = CnnBaseline(pixel_size, in_channels_thickness).to(device)
 
                 cross_entropy_loss = nn.CrossEntropyLoss()
@@ -207,7 +207,7 @@ def cnn_baseline_training(dataset_name):
     combined_train = ConcatDataset([input_train.dataset, input_val.dataset])
     combined_train_val = DataLoader(combined_train, batch_size=winner["batch_size"], shuffle=True)
 
-    for epoch in range(10):
+    for epoch in range(50):
         total_loss = 0.0
         for images, labels in combined_train_val:
 
